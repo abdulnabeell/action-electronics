@@ -4,7 +4,7 @@ Set these in `.env.local` for local work and in your hosting provider's dashboar
 
 | Variable | Required | Exposed to browser | Purpose |
 | --- | --- | --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | yes (production) | yes | Canonical origin, e.g. `https://www.example.com`. Used for sitemap, hreflang/canonical and product structured data. No trailing slash. |
+| `NEXT_PUBLIC_SITE_URL` | yes (production) | yes | Canonical origin, e.g. `https://www.example.com`. Blank/invalid values are ignored; falls back to Vercel's `VERCEL_PROJECT_PRODUCTION_URL`/`VERCEL_URL`, then localhost (dev only). Used for sitemap, hreflang/canonical and product structured data. No trailing slash. |
 | `NEXT_PUBLIC_SUPABASE_URL` | for database mode | yes | Supabase project URL (Settings → API). Also whitelists the Storage host for `next/image`. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | for database mode | yes | Public `anon` key. Safe in the browser **because** Row Level Security limits it to read-only catalogue data (active products, prices, categories, brands, promotions, countries). |
 | `SUPABASE_SERVICE_ROLE_KEY` | for orders + admin | **never** | Bypasses RLS. Used only in server code (`src/lib/supabase/server.ts` is `server-only`): order creation, tracking lookup, admin actions, image upload. Treat as a password; rotate it if it ever leaks. |
