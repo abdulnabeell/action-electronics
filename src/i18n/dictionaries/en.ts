@@ -111,6 +111,7 @@ export const en = {
     clear: "Clear cart",
     remove: "Remove {name}",
     loading: "Loading cart…",
+    loadError: "We couldn't load your cart prices. Your items are saved - please try again.",
     subtotal: "Subtotal",
     delivery: "Delivery",
     deliveryFree: "Free",

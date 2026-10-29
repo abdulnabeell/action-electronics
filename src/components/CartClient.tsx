@@ -16,7 +16,7 @@ type Form = { name: string; phone: string; email: string; region: string; method
 const empty: Form = { name: "", phone: "", email: "", region: "", method: "delivery", address: "", notes: "", website: "" };
 
 export default function CartClient() {
-  const { lines, ready, unavailable, setQty, remove, clear } = useCart();
+  const { lines, ready, error, retry, unavailable, setQty, remove, clear } = useCart();
   const { dict, info, href, money, country, lang } = useLocale();
   const router = useRouter();
   const [f, setF] = useState<Form>(empty);
@@ -25,6 +25,16 @@ export default function CartClient() {
   const [formError, setFormError] = useState("");
 
   if (!ready) return <div className="container-x py-10 text-slate-500" role="status">{dict.cart.loading}</div>;
+
+  if (error && lines.length === 0) {
+    return (
+      <div className="container-x py-16 text-center">
+        <h1 className="text-2xl font-extrabold">{dict.cart.title}</h1>
+        <p className="mt-2 text-slate-600" role="alert">{dict.cart.loadError}</p>
+        <button type="button" onClick={retry} className="btn-primary mt-6">{dict.common.retry}</button>
+      </div>
+    );
+  }
 
   if (lines.length === 0) {
     return (

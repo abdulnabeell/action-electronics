@@ -112,6 +112,7 @@ export const ar: Dictionary = {
     clear: "إفراغ السلة",
     remove: "إزالة {name}",
     loading: "جارٍ تحميل السلة…",
+    loadError: "تعذّر تحميل أسعار السلة. منتجاتك محفوظة - يرجى المحاولة مرة أخرى.",
     subtotal: "المجموع الفرعي",
     delivery: "التوصيل",
     deliveryFree: "مجاني",

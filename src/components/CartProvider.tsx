@@ -26,6 +26,9 @@ type CartCtx = {
   /** Total quantity in the cart (shown on the header badge). */
   count: number;
   ready: boolean;
+  /** True when the last attempt to price the cart on the server failed (items are still stored). */
+  error: boolean;
+  retry: () => void;
   /** Number of stored products that aren't sold in the current country. */
   unavailable: number;
   add: (id: string, qty?: number) => void;
@@ -43,13 +46,32 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [priced, setPriced] = useState<Omit<CartLine, "qty">[]>([]);
   const [missing, setMissing] = useState<string[]>([]);
   const [ready, setReady] = useState(false);
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+
+  const read = (raw: string | null): Stored => {
+    const out: Stored = {};
+    try {
+      const o = raw ? JSON.parse(raw) : {};
+      for (const [id, q] of Object.entries(o)) if (typeof q === "number" && q > 0) out[id] = Math.min(MAX_QTY, Math.floor(q));
+    } catch {}
+    return out;
+  };
 
   useEffect(() => {
+    let stored: Stored = {};
     try {
-      const raw = localStorage.getItem(KEY);
-      if (raw) setItems(JSON.parse(raw));
+      stored = read(localStorage.getItem(KEY));
     } catch {}
+    // Merge (don't overwrite) so an add that happened before this effect ran is never lost.
+    setItems((s) => ({ ...stored, ...s }));
     setLoaded(true);
+    // Keep several tabs of the same browser on one cart.
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === KEY) setItems(read(e.newValue));
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, []);
 
   useEffect(() => {
@@ -64,16 +86,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const lastKey = useRef("");
   useEffect(() => {
     if (!loaded) return;
-    const key = `${locale}::${idsKey}`;
+    const key = `${locale}::${idsKey}::${attempt}`;
     if (key === lastKey.current) return;
     lastKey.current = key;
     if (!idsKey) {
       setPriced([]);
       setMissing([]);
+      setError(false);
       setReady(true);
       return;
     }
     const ctrl = new AbortController();
+    setError(false);
     fetch("/api/cart", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -87,10 +111,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         setReady(true);
       })
       .catch((e) => {
-        if (e?.name !== "AbortError") setReady(true);
+        if (e?.name === "AbortError") return;
+        setError(true);
+        setReady(true);
       });
-    return () => ctrl.abort();
-  }, [loaded, locale, idsKey]);
+    return () => {
+      ctrl.abort();
+      lastKey.current = ""; // an aborted request must not block the next run for the same key
+    };
+  }, [loaded, locale, idsKey, attempt]);
+
+  const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
   const add = useCallback(
     (id: string, qty = 1) => setItems((s) => ({ ...s, [id]: Math.min(MAX_QTY, (s[id] ?? 0) + qty) })),
@@ -128,13 +159,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       lines,
       count: Object.values(items).reduce((n, q) => n + q, 0),
       ready,
+      error,
+      retry,
       unavailable: missing.filter((id) => items[id]).length,
       add,
       setQty,
       remove,
       clear,
     };
-  }, [items, priced, missing, ready, add, setQty, remove, clear]);
+  }, [items, priced, missing, ready, error, retry, add, setQty, remove, clear]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
